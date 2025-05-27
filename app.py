@@ -18,6 +18,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global variables for lazy loading
+model_data = None
+model = None
+columns = None
+players = None
+
 def download_model_if_needed():
     model_path = "saved_model.pkl"
     if not os.path.exists(model_path):
@@ -29,14 +35,28 @@ def download_model_if_needed():
         print("Model downloaded successfully!")
     return joblib.load(model_path)
 
-# Load model and columns once on startup
-model_data = download_model_if_needed()
-model = model_data['model']
-columns = model_data['columns']
+def load_model():
+    global model_data, model, columns
+    if model is None:
+        try:
+            model_data = download_model_if_needed()
+            model = model_data['model']
+            columns = model_data['columns']
+            print("Model loaded successfully!")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            raise
 
-# Load filtered players list from JSON
-with open("filtered_players.json", "r") as f:
-    players = json.load(f)
+def load_players():
+    global players
+    if players is None:
+        try:
+            with open("filtered_players.json", "r") as f:
+                players = json.load(f)
+            print("Players loaded successfully!")
+        except Exception as e:
+            print(f"Error loading players: {e}")
+            players = []
 
 class PredictRequest(BaseModel):
     player1: str
@@ -47,42 +67,58 @@ class PredictRequest(BaseModel):
 async def root():
     return {"message": "AcePredictor backend is running"}
 
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "players_loaded": players is not None
+    }
+
 @app.get("/players")
 async def get_players():
+    load_players()
     return {"players": players}
 
 @app.post("/predict")
 async def predict(req: PredictRequest):
-    input_df = pd.DataFrame(columns=columns)
-    input_df.loc[0] = 0
+    try:
+        # Load model on first prediction request
+        load_model()
+        
+        input_df = pd.DataFrame(columns=columns)
+        input_df.loc[0] = 0
 
-    key_player1 = "player1_" + req.player1
-    key_player2 = "player2_" + req.player2
-    key_surface = "surface_" + req.surface
+        key_player1 = "player1_" + req.player1
+        key_player2 = "player2_" + req.player2
+        key_surface = "surface_" + req.surface
 
-    if key_player1 not in columns:
-        return {"error": f"Player1 '{req.player1}' not found in model features."}
-    if key_player2 not in columns:
-        return {"error": f"Player2 '{req.player2}' not found in model features."}
-    if key_surface not in columns:
-        return {"error": f"Surface '{req.surface}' not found in model features."}
+        if key_player1 not in columns:
+            return {"error": f"Player1 '{req.player1}' not found in model features."}
+        if key_player2 not in columns:
+            return {"error": f"Player2 '{req.player2}' not found in model features."}
+        if key_surface not in columns:
+            return {"error": f"Surface '{req.surface}' not found in model features."}
 
-    input_df.at[0, key_player1] = 1
-    input_df.at[0, key_player2] = 1
-    input_df.at[0, key_surface] = 1
+        input_df.at[0, key_player1] = 1
+        input_df.at[0, key_player2] = 1
+        input_df.at[0, key_surface] = 1
 
-    proba = model.predict_proba(input_df)[0]
-    prob_player1_wins = proba[1]
-    prob_player2_wins = proba[0]
+        proba = model.predict_proba(input_df)[0]
+        prob_player1_wins = proba[1]
+        prob_player2_wins = proba[0]
 
-    if prob_player1_wins >= prob_player2_wins:
-        winner = req.player1
-        confidence = prob_player1_wins * 100
-    else:
-        winner = req.player2
-        confidence = prob_player2_wins * 100
+        if prob_player1_wins >= prob_player2_wins:
+            winner = req.player1
+            confidence = prob_player1_wins * 100
+        else:
+            winner = req.player2
+            confidence = prob_player2_wins * 100
 
-    return {
-        "winner": winner,
-        "confidence": round(confidence, 2)
-    }
+        return {
+            "winner": winner,
+            "confidence": round(confidence, 2)
+        }
+    
+    except Exception as e:
+        return {"error": f"Prediction failed: {str(e)}"}
