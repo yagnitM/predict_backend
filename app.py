@@ -9,6 +9,15 @@ import requests
 import gdown
 import numpy
 
+# NumPy compatibility fix for _core module
+try:
+    import numpy._core
+except ImportError:
+    import numpy.core as _core
+    numpy._core = _core
+    import sys
+    sys.modules['numpy._core'] = _core
+
 app = FastAPI()
 
 # CORS config for frontend calls
@@ -202,6 +211,3 @@ async def debug_model_file():
     exists = os.path.exists("saved_model.pkl")
     size = os.path.getsize("saved_model.pkl") if exists else 0
     return {"exists": exists, "size_bytes": size}
-
-
-
