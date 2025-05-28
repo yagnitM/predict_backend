@@ -9,14 +9,30 @@ import requests
 import gdown
 import numpy
 
-# NumPy compatibility fix for _core module
+# NumPy compatibility fix for _core module and structseq issues
+import sys
 try:
     import numpy._core
 except ImportError:
     import numpy.core as _core
     numpy._core = _core
-    import sys
     sys.modules['numpy._core'] = _core
+
+# Fix for structseq compatibility issues
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=UserWarning)
+
+# Additional compatibility patches
+try:
+    import numpy.core._multiarray_umath
+except ImportError:
+    pass
+
+# Set numpy array type compatibility
+import numpy as np
+if hasattr(np, 'set_printoptions'):
+    np.set_printoptions(legacy='1.13')
 
 app = FastAPI()
 
@@ -62,7 +78,19 @@ def download_model_if_needed():
         size = os.path.getsize(model_path)
         if size > 10_000_000:  # 10 MB sanity check
             print(f"Model already exists with size {size} bytes.")
-            return joblib.load(model_path)
+            try:
+                return joblib.load(model_path)
+            except Exception as e:
+                print(f"Error loading existing model with joblib: {e}")
+                print("Trying alternative loading method...")
+                try:
+                    import pickle
+                    with open(model_path, 'rb') as f:
+                        return pickle.load(f)
+                except Exception as e2:
+                    print(f"Alternative loading also failed: {e2}")
+                    print("Deleting corrupted model and re-downloading...")
+                    os.remove(model_path)
         else:
             print(f"Existing model file too small ({size} bytes), deleting...")
             os.remove(model_path)
@@ -77,7 +105,19 @@ def download_model_if_needed():
     if size < 10_000_000:
         raise Exception("Downloaded file is too small, probably incorrect!")
 
-    return joblib.load(model_path)
+    # Try joblib first, then pickle as fallback
+    try:
+        return joblib.load(model_path)
+    except Exception as e:
+        print(f"Error loading with joblib: {e}")
+        print("Trying with pickle...")
+        try:
+            import pickle
+            with open(model_path, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e2:
+            print(f"Error loading with pickle: {e2}")
+            raise e
 
 def load_model():
     global model_data, model, columns
