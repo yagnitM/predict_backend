@@ -83,16 +83,18 @@ async def get_players():
 @app.post("/predict")
 async def predict(req: PredictRequest):
     try:
-        # Load model on first prediction request
+        print("Received request:", req)
         load_model()
         
-        # input_df = pd.DataFrame(columns=columns)
-        # input_df.loc[0] = 0
-        input_df = pd.DataFrame([[0]*len(columns)], columns=columns)
+        # Correct initialization
+        input_df = pd.DataFrame([[0] * len(columns)], columns=columns)
+        print("Initialized input_df with zeros.")
 
         key_player1 = "player1_" + req.player1
         key_player2 = "player2_" + req.player2
         key_surface = "surface_" + req.surface
+
+        print(f"Checking keys: {key_player1}, {key_player2}, {key_surface}")
 
         if key_player1 not in columns:
             return {"error": f"Player1 '{req.player1}' not found in model features."}
@@ -105,7 +107,11 @@ async def predict(req: PredictRequest):
         input_df.at[0, key_player2] = 1
         input_df.at[0, key_surface] = 1
 
+        print("DataFrame ready for prediction:", input_df)
+
         proba = model.predict_proba(input_df)[0]
+        print("Prediction probabilities:", proba)
+
         prob_player1_wins = proba[1]
         prob_player2_wins = proba[0]
 
@@ -120,7 +126,7 @@ async def predict(req: PredictRequest):
             "winner": winner,
             "confidence": round(confidence, 2)
         }
-    
-    except Exception as e:
-        return {"error": f"Prediction failed: {str(e)}"}
 
+    except Exception as e:
+        print("Prediction error:", str(e))  # Add logging for debugging
+        return {"error": f"Prediction failed: {str(e)}"}
