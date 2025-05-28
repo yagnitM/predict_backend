@@ -10,29 +10,29 @@ import gdown
 import numpy
 
 # NumPy compatibility fix for _core module and structseq issues
-import sys
-try:
-    import numpy._core
-except ImportError:
-    import numpy.core as _core
-    numpy._core = _core
-    sys.modules['numpy._core'] = _core
+# import sys
+# try:
+#     import numpy._core
+# except ImportError:
+#     import numpy.core as _core
+#     numpy._core = _core
+#     sys.modules['numpy._core'] = _core
 
-# Fix for structseq compatibility issues
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', category=UserWarning)
+# # Fix for structseq compatibility issues
+# import warnings
+# warnings.filterwarnings('ignore', category=FutureWarning)
+# warnings.filterwarnings('ignore', category=UserWarning)
 
-# Additional compatibility patches
-try:
-    import numpy.core._multiarray_umath
-except ImportError:
-    pass
+# # Additional compatibility patches
+# try:
+#     import numpy.core._multiarray_umath
+# except ImportError:
+#     pass
 
-# Set numpy array type compatibility
-import numpy as np
-if hasattr(np, 'set_printoptions'):
-    np.set_printoptions(legacy='1.13')
+# # Set numpy array type compatibility
+# import numpy as np
+# if hasattr(np, 'set_printoptions'):
+#     np.set_printoptions(legacy='1.13')
 
 app = FastAPI()
 
