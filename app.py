@@ -29,21 +29,16 @@ def download_file_from_google_drive(file_id, destination):
     session = requests.Session()
 
     response = session.get(URL, params={'id': file_id}, stream=True)
-    token = get_confirm_token(response)
+    token = None
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            token = value
+            break
 
     if token:
         params = {'id': file_id, 'confirm': token}
         response = session.get(URL, params=params, stream=True)
 
-    save_response_content(response, destination)
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-    return None
-
-def save_response_content(response, destination):
     CHUNK_SIZE = 32768
     with open(destination, "wb") as f:
         for chunk in response.iter_content(CHUNK_SIZE):
@@ -52,11 +47,18 @@ def save_response_content(response, destination):
 
 def download_model_if_needed():
     model_path = "saved_model.pkl"
+    if os.path.exists(model_path) and os.path.getsize(model_path) == 0:
+        print("Removing empty model file...")
+        os.remove(model_path)
+
     if not os.path.exists(model_path):
         print("Downloading model from Google Drive...")
         file_id = "1KZWOEyoklJ7XZySAFd-oQG1FTrRQWOyb"
         download_file_from_google_drive(file_id, model_path)
-        print("Model downloaded successfully!")
+        size = os.path.getsize(model_path)
+        print(f"Model downloaded successfully! File size: {size} bytes")
+        if size == 0:
+            raise Exception("Downloaded model file is empty!")
     return joblib.load(model_path)
 
 def load_model():
@@ -109,8 +111,7 @@ async def predict(req: PredictRequest):
     try:
         print("Received request:", req)
         load_model()
-        
-        # Initialize DataFrame with zeros for all columns
+
         input_df = pd.DataFrame([[0] * len(columns)], columns=columns)
         print("Initialized input_df with zeros.")
 
