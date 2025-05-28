@@ -133,5 +133,11 @@ async def predict(req: PredictRequest):
 
 @app.get("/debug/columns")
 async def debug_columns():
-    load_model()
-    return {"columns": columns, "count": len(columns)}
+    try:
+        load_model()
+        if columns is None:
+            return {"error": "Model loaded but columns is still None"}
+        return {"columns": columns, "count": len(columns)}
+    except Exception as e:
+        print("Error in /debug/columns:", str(e))
+        return {"error": f"Failed to load columns: {str(e)}"}
