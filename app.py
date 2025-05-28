@@ -86,8 +86,9 @@ async def predict(req: PredictRequest):
         # Load model on first prediction request
         load_model()
         
-        input_df = pd.DataFrame(columns=columns)
-        input_df.loc[0] = 0
+        # input_df = pd.DataFrame(columns=columns)
+        # input_df.loc[0] = 0
+        input_df = pd.DataFrame([[0]*len(columns)], columns=columns)
 
         key_player1 = "player1_" + req.player1
         key_player2 = "player2_" + req.player2
@@ -122,3 +123,4 @@ async def predict(req: PredictRequest):
     
     except Exception as e:
         return {"error": f"Prediction failed: {str(e)}"}
+
