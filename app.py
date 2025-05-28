@@ -141,3 +141,9 @@ async def debug_columns():
     except Exception as e:
         print("Error in /debug/columns:", str(e))
         return {"error": f"Failed to load columns: {str(e)}"}
+
+@app.get("/debug/model-file")
+async def debug_model_file():
+    exists = os.path.exists("saved_model.pkl")
+    size = os.path.getsize("saved_model.pkl") if exists else 0
+    return {"exists": exists, "size_bytes": size}
