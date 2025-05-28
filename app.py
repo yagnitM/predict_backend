@@ -6,6 +6,7 @@ import pandas as pd
 import json
 import os
 import requests
+import gdown
 
 app = FastAPI()
 
@@ -47,18 +48,25 @@ def download_file_from_google_drive(file_id, destination):
 
 def download_model_if_needed():
     model_path = "saved_model.pkl"
-    if os.path.exists(model_path) and os.path.getsize(model_path) == 0:
-        print("Removing empty model file...")
-        os.remove(model_path)
-
-    if not os.path.exists(model_path):
-        print("Downloading model from Google Drive...")
-        file_id = "1KZWOEyoklJ7XZySAFd-oQG1FTrRQWOyb"
-        download_file_from_google_drive(file_id, model_path)
+    if os.path.exists(model_path):
         size = os.path.getsize(model_path)
-        print(f"Model downloaded successfully! File size: {size} bytes")
-        if size == 0:
-            raise Exception("Downloaded model file is empty!")
+        if size > 10_000_000:  # 10 MB minimum check for sanity
+            print(f"Model already exists with size {size} bytes.")
+            return joblib.load(model_path)
+        else:
+            print(f"Existing model file too small ({size} bytes), deleting...")
+            os.remove(model_path)
+
+    print("Downloading model using gdown...")
+    url = "https://drive.google.com/uc?id=1KZWOEyoklJ7XZySAFd-oQG1FTrRQWOyb"
+    gdown.download(url, model_path, quiet=False)
+
+    size = os.path.getsize(model_path)
+    print(f"Downloaded model size: {size} bytes")
+
+    if size < 10_000_000:
+        raise Exception("Downloaded file is too small, probably incorrect!")
+
     return joblib.load(model_path)
 
 def load_model():
