@@ -1,5 +1,6 @@
 # Large model files
 saved_model.pkl
+saved_model_v2.pkl
 
 # Python
 __pycache__/

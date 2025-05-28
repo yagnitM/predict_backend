@@ -73,7 +73,7 @@ def download_file_from_google_drive(file_id, destination):
                 f.write(chunk)
 
 def download_model_if_needed():
-    model_path = "saved_model.pkl"
+    model_path = "saved_model_v2.pkl"
     if os.path.exists(model_path):
         size = os.path.getsize(model_path)
         if size > 10_000_000:  # 10 MB sanity check
@@ -248,7 +248,7 @@ async def debug_columns():
 
 @app.get("/debug/model-file")
 async def debug_model_file():
-    exists = os.path.exists("saved_model.pkl")
-    size = os.path.getsize("saved_model.pkl") if exists else 0
+    exists = os.path.exists("saved_model_v2.pkl")
+    size = os.path.getsize("saved_model_v2.pkl") if exists else 0
     return {"exists": exists, "size_bytes": size}
 
