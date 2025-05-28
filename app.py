@@ -5,34 +5,7 @@ import joblib
 import pandas as pd
 import json
 import os
-import requests
-import gdown
 import numpy
-
-# NumPy compatibility fix for _core module and structseq issues
-# import sys
-# try:
-#     import numpy._core
-# except ImportError:
-#     import numpy.core as _core
-#     numpy._core = _core
-#     sys.modules['numpy._core'] = _core
-
-# # Fix for structseq compatibility issues
-# import warnings
-# warnings.filterwarnings('ignore', category=FutureWarning)
-# warnings.filterwarnings('ignore', category=UserWarning)
-
-# # Additional compatibility patches
-# try:
-#     import numpy.core._multiarray_umath
-# except ImportError:
-#     pass
-
-# # Set numpy array type compatibility
-# import numpy as np
-# if hasattr(np, 'set_printoptions'):
-#     np.set_printoptions(legacy='1.13')
 
 app = FastAPI()
 
@@ -51,84 +24,16 @@ model = None
 columns = None
 players = None
 
-def download_file_from_google_drive(file_id, destination):
-    URL = "https://docs.google.com/uc?export=download"
-    session = requests.Session()
-
-    response = session.get(URL, params={'id': file_id}, stream=True)
-    token = None
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            token = value
-            break
-
-    if token:
-        params = {'id': file_id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-
-    CHUNK_SIZE = 32768
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:
-                f.write(chunk)
-
-def download_model_if_needed():
-    model_path = "saved_model_v2.pkl"
-    if os.path.exists(model_path):
-        size = os.path.getsize(model_path)
-        if size > 10_000_000:  # 10 MB sanity check
-            print(f"Model already exists with size {size} bytes.")
-            try:
-                return joblib.load(model_path)
-            except Exception as e:
-                print(f"Error loading existing model with joblib: {e}")
-                print("Trying alternative loading method...")
-                try:
-                    import pickle
-                    with open(model_path, 'rb') as f:
-                        return pickle.load(f)
-                except Exception as e2:
-                    print(f"Alternative loading also failed: {e2}")
-                    print("Deleting corrupted model and re-downloading...")
-                    os.remove(model_path)
-        else:
-            print(f"Existing model file too small ({size} bytes), deleting...")
-            os.remove(model_path)
-    print("Downloading model using gdown...")
-    url = "https://drive.google.com/uc?id=1A68IlN_qh91k1EGs7NIiWZXpRIShZJcc"
-    gdown.download(url, model_path, quiet=False)
-
-    size = os.path.getsize(model_path)
-    print(f"Downloaded model size: {size} bytes")
-
-    if size < 10_000_000:
-        raise Exception("Downloaded file is too small, probably incorrect!")
-
-    # Try joblib first, then pickle as fallback
-    try:
-        return joblib.load(model_path)
-    except Exception as e:
-        print(f"Error loading with joblib: {e}")
-        print("Trying with pickle...")
-        try:
-            import pickle
-            with open(model_path, 'rb') as f:
-                return pickle.load(f)
-        except Exception as e2:
-            print(f"Error loading with pickle: {e2}")
-            raise e
-
 def load_model():
     global model_data, model, columns
     if model is None:
-        try:
-            model_data = download_model_if_needed()
-            model = model_data['model']
-            columns = model_data['columns']
-            print("Model loaded successfully!")
-        except Exception as e:
-            print(f"Error loading model: {e}")
-            raise
+        model_path = "saved_model_v2.pkl"
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file {model_path} not found. Please upload it.")
+        model_data = joblib.load(model_path)
+        model = model_data['model']
+        columns = model_data['columns']
+        print("Model loaded successfully!")
 
 def load_players():
     global players
@@ -250,4 +155,3 @@ async def debug_model_file():
     exists = os.path.exists("saved_model_v2.pkl")
     size = os.path.getsize("saved_model_v2.pkl") if exists else 0
     return {"exists": exists, "size_bytes": size}
-
