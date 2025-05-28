@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Globals for lazy loading
+# Global variables for lazy loading
 model_data = None
 model = None
 columns = None
