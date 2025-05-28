@@ -7,6 +7,7 @@ import json
 import os
 import requests
 import gdown
+import numpy
 
 app = FastAPI()
 
@@ -100,6 +101,7 @@ class PredictRequest(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     print("Running startup event: loading model and players...")
+    print(f"NumPy version on startup: {numpy.__version__}")
     try:
         load_model()
         load_players()
@@ -200,3 +202,6 @@ async def debug_model_file():
     exists = os.path.exists("saved_model.pkl")
     size = os.path.getsize("saved_model.pkl") if exists else 0
     return {"exists": exists, "size_bytes": size}
+
+
+
