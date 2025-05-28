@@ -18,20 +18,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global variables for lazy loading
+# Globals for lazy loading
 model_data = None
 model = None
 columns = None
 players = None
 
+def download_file_from_google_drive(file_id, destination):
+    URL = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+
+    response = session.get(URL, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    save_response_content(response, destination)
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:
+                f.write(chunk)
+
 def download_model_if_needed():
     model_path = "saved_model.pkl"
     if not os.path.exists(model_path):
         print("Downloading model from Google Drive...")
-        model_url = "https://drive.google.com/uc?export=download&id=1KZWOEyoklJ7XZySAFd-oQG1FTrRQWOyb"
-        response = requests.get(model_url)
-        with open(model_path, 'wb') as f:
-            f.write(response.content)
+        file_id = "1KZWOEyoklJ7XZySAFd-oQG1FTrRQWOyb"
+        download_file_from_google_drive(file_id, model_path)
         print("Model downloaded successfully!")
     return joblib.load(model_path)
 
@@ -86,7 +110,7 @@ async def predict(req: PredictRequest):
         print("Received request:", req)
         load_model()
         
-        # Correct initialization
+        # Initialize DataFrame with zeros for all columns
         input_df = pd.DataFrame([[0] * len(columns)], columns=columns)
         print("Initialized input_df with zeros.")
 
@@ -128,7 +152,7 @@ async def predict(req: PredictRequest):
         }
 
     except Exception as e:
-        print("Prediction error:", str(e))  # Add logging for debugging
+        print("Prediction error:", str(e))
         return {"error": f"Prediction failed: {str(e)}"}
 
 @app.get("/debug/columns")
