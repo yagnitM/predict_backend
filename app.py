@@ -50,7 +50,7 @@ def download_model_if_needed():
     model_path = "saved_model.pkl"
     if os.path.exists(model_path):
         size = os.path.getsize(model_path)
-        if size > 10_000_000:  # 10 MB minimum check for sanity
+        if size > 10_000_000:  # 10 MB sanity check
             print(f"Model already exists with size {size} bytes.")
             return joblib.load(model_path)
         else:
@@ -97,12 +97,31 @@ class PredictRequest(BaseModel):
     player2: str
     surface: str  # "Hard", "Clay", "Grass"
 
+@app.on_event("startup")
+async def startup_event():
+    print("Running startup event: loading model and players...")
+    try:
+        load_model()
+        load_players()
+        print("Startup: Model and players loaded successfully!")
+    except Exception as e:
+        print(f"Startup failed: {e}")
+
 @app.get("/")
 async def root():
     return {"message": "AcePredictor backend is running"}
 
 @app.get("/health")
 async def health():
+    try:
+        load_model()
+    except Exception as e:
+        print(f"Health check: model loading failed: {e}")
+    try:
+        load_players()
+    except Exception as e:
+        print(f"Health check: players loading failed: {e}")
+    
     return {
         "status": "healthy",
         "model_loaded": model is not None,
@@ -118,6 +137,7 @@ async def get_players():
 async def predict(req: PredictRequest):
     try:
         print("Received request:", req)
+        print(f"Predicting: {req.player1} vs {req.player2} on {req.surface}")
         load_model()
 
         input_df = pd.DataFrame([[0] * len(columns)], columns=columns)
