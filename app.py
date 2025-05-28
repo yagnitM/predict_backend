@@ -130,3 +130,8 @@ async def predict(req: PredictRequest):
     except Exception as e:
         print("Prediction error:", str(e))  # Add logging for debugging
         return {"error": f"Prediction failed: {str(e)}"}
+
+@app.get("/debug/columns")
+async def debug_columns():
+    load_model()
+    return {"columns": columns, "count": len(columns)}
