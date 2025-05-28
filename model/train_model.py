@@ -42,7 +42,6 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 # Train model with verbose to see progress in console
 model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-
 model.fit(X_train, y_train)
 
 # Evaluate
@@ -51,5 +50,11 @@ accuracy = accuracy_score(y_test, y_pred)
 print(f"✅ Model trained successfully!")
 print(f"📈 Accuracy on test set: {accuracy * 100:.2f}%")
 
-# Save model and feature columns
-joblib.dump({'model': model, 'columns': X.columns.tolist()}, 'saved_model.pkl')
+# Delete existing saved model if it exists
+model_path = 'saved_model_v2.pkl'
+if os.path.exists(model_path):
+    os.remove(model_path)
+
+# Save model and feature columns with compression
+joblib.dump({'model': model, 'columns': X.columns.tolist()}, model_path, compress=3)
+print(f"💾 Model saved with compression to {model_path}")
