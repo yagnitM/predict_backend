@@ -94,9 +94,8 @@ def download_model_if_needed():
         else:
             print(f"Existing model file too small ({size} bytes), deleting...")
             os.remove(model_path)
-
     print("Downloading model using gdown...")
-    url = "https://drive.google.com/uc?id=1dyukeXIb-C4kux7Vwbawnn3Z_Bo7THio"
+    url = "https://drive.google.com/uc?id=1A68IlN_qh91k1EGs7NIiWZXpRIShZJcc"
     gdown.download(url, model_path, quiet=False)
 
     size = os.path.getsize(model_path)
